@@ -7,9 +7,11 @@
 
 import UIKit
 import Kingfisher
+import FirebaseDatabase
 
 // 별도로 delegate, datasource를 별도로 연결하지 않아도 됨
 class CardListViewController: UITableViewController {
+    var ref: DatabaseReference! // Firebase Realtime Database
     
     var creditCardList: [CreditCard] = []
     
@@ -19,6 +21,25 @@ class CardListViewController: UITableViewController {
         //UITableView Cell Register
         let nibName = UINib(nibName: "CardListCell", bundle: nil)
         tableView.register(nibName, forCellReuseIdentifier: "CardListCell")
+        
+        ref = Database.database().reference()
+        
+        self.ref.observe(.value) { snapshot in
+            guard let value = snapshot.value as? [String: [String: Any]] else { return }
+            
+            do {
+                let jsonData = try JSONSerialization.data(withJSONObject: value)
+                let cardData = try JSONDecoder().decode([String: CreditCard].self, from: jsonData)
+                let cardList = Array(cardData.values)
+                self.creditCardList = cardList.sorted { $0.rank < $1.rank }
+                
+                DispatchQueue.main.async {
+                    self.tableView.reloadData()
+                }
+            } catch let error {
+                print("Error json parsing \(error)")
+            }
+        }
     }
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -30,7 +51,7 @@ class CardListViewController: UITableViewController {
                                                        , for: indexPath) as? CardListCell else { return UITableViewCell() }
         
         cell.rankLabel.text = "\(creditCardList[indexPath.row].rank)위"
-        cell.promotionLabel.text = "\(creditCardList[indexPath.row].promotionDetail.amount)"
+        cell.promotionLabel.text = "\(creditCardList[indexPath.row].promotionDetail.amount)만원 증정"
         cell.cardNameLabel.text = "\(creditCardList[indexPath.row].name)"
         
         let imageURL = URL(string: creditCardList[indexPath.row].cardImageURL)
