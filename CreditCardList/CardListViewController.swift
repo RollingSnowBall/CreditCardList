@@ -72,5 +72,44 @@ class CardListViewController: UITableViewController {
         
         detailViewController.promotionDetail = creditCardList[indexPath.row].promotionDetail
         self.show(detailViewController, sender: nil)
+        
+        //Option 1 : 조회 정보를 정확히 알 때.
+        //불특정한 ID로 생성될 때, 조회하기 애매한 방법
+        let cardId = creditCardList[indexPath.row].id
+        //ref.child("Item\(cardId)/isSelected").setValue(true)
+        
+        //Option 2 : 조회 정보를 정확하게 모를때
+        ref.queryOrdered(byChild: "id").queryEqual(toValue: cardId).observe(.value) {
+            [weak self] snapshot in
+            guard let self = self,
+                  let value = snapshot.value as? [String: [String: Any]],
+                  let key = value.keys.first else { return }
+            
+            self.ref.child("\(key)/isSelected").setValue(true)
+        }
+    }
+    
+    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        return true
+    }
+    
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            
+            let cardId = creditCardList[indexPath.row].id
+            
+            //Option1 - 경로를 알 때
+            //ref.child("Item\(cardId)").removeValue();
+            
+            //Option2 - 경로를 모를 때
+            ref.queryOrdered(byChild: "id").queryEqual(toValue: cardId).observe(.value) {
+                [weak self] snapshot in
+                guard let self = self,
+                      let value = snapshot.value as? [String: [String: Any]],
+                      let key = value.keys.first else { return }
+                
+                self.ref.child(key).removeValue()
+            }
+        }
     }
 }
